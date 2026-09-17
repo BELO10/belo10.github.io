@@ -2483,5 +2483,12 @@ let allDone = false;
         if (rebootRequired)
             mark("REBOOT-REQUIRED", "reason=uaf-file-not-reclaimed");
         mark("PROOF-SUMMARY-FINAL", "pass=" + passCount + " fail=" + failCount);
+        if (allDone) {
+            try {
+                if (localStorage.getItem("rawgame_store_installed_v1") !== "1") {
+                    setTimeout(function () { location.replace("after.html"); }, 1500);
+                }
+            } catch (e) { }
+        }
     }
 })();
