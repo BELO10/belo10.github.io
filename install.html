@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BELOGAME - Web Installer Test</title>
+<style>
+html,body{margin:0;padding:0;background:#0b0d10;color:#e7edf5;font-family:Arial,Tahoma,sans-serif;min-height:100%}
+body{display:flex;align-items:center;justify-content:center;padding:24px}
+.card{width:92%;max-width:620px;background:#11151b;border:1px solid #25303d;border-radius:16px;padding:28px;text-align:center}
+h1{margin:0 0 10px;font-size:30px}.sub{color:#aab6c5;line-height:1.8;margin:0 0 20px}
+#state{font-size:21px;font-weight:bold;margin:18px 0;padding:14px;border-radius:10px;background:#0e1218}
+#log{white-space:pre-wrap;text-align:left;direction:ltr;font:12px/1.5 monospace;background:#090c10;border:1px solid #202a35;border-radius:10px;padding:12px;min-height:120px;max-height:280px;overflow:auto;color:#b9c4d1}
+.ok{color:#83d8a5}.bad{color:#ee8d8d}.warn{color:#e4c878}
+.note{margin-top:18px;color:#7d8998;font-size:13px;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>BELOGAME</h1>
+  <p class="sub">اختبار تثبيت Homebrew Store من متصفح PS4 بعد تشغيل GoldHEN.</p>
+  <div id="state">جاري تجهيز Web Installer...</div>
+  <div id="log"></div>
+  <div class="note">هذه صفحة اختبار مستقلة. لا تعيد تشغيل Poops/Kernel exploit؛ المطلوب أن يكون GoldHEN شغال قبل فتحها.</div>
+</div>
+<script type="module" src="./chain_installer.js?v=1"></script>
+</body>
+</html>
