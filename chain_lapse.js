@@ -3812,13 +3812,6 @@ function makeRpc(worker) {
                     : "REPAIRED -- NO REBOOT NEEDED";
                 stateEl.className = "ok";
             } catch (e) { }
-            if (payloadRunning) {
-                try {
-                    if (localStorage.getItem("rawgame_store_installed_v1") !== "1") {
-                        setTimeout(function () { location.replace("after.html"); }, 1500);
-                    }
-                } catch (e) { }
-            }
         }
     }
 })();
