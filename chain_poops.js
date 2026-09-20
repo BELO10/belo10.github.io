@@ -172,6 +172,21 @@ let allDone = false;
               + (payload[0] === 0xe9 ? "e9-jmp-rel32" : "NOT-e9")
             : "MISSING");
 
+        // BELOGAME store-installer test. Inert unless ?storetest=1 is present.
+        const RUN_STORE_TEST = params.get("storetest") === "1";
+        let storeInstaller = null;
+        if (RUN_STORE_TEST) {
+            try {
+                const ir = await fetch("online-store-installer.bin");
+                if (ir.ok) storeInstaller = new Uint8Array(await ir.arrayBuffer());
+            } catch (e) {
+                mark("STORE-INSTALLER-FETCH-FAILED",
+                    (e && e.message) ? e.message : String(e));
+            }
+            mark("STORE-INSTALLER-BLOB",
+                storeInstaller ? "bytes=" + storeInstaller.length : "NOT LOADED");
+        }
+
         state("running the primitive...", "warn");
         await new Promise(r => setTimeout(r, 0));
 
@@ -2298,6 +2313,59 @@ let allDone = false;
                                         payloadRunning, "");
                                     if (payloadRunning) mark("PAYLOAD-RUNNING",
                                         "bytes=" + payload.length + " entry=" + entry);
+
+
+                                    if (payloadRunning && RUN_STORE_TEST && storeInstaller) {
+                                        try {
+                                            // Let the GoldHEN thread initialise before the
+                                            // store installer checks for GoldHEN/Mira.
+                                            const its = new ArrayBuffer(16);
+                                            keepAlive.push(its);
+                                            const itsAddr = bufAddr(its);
+                                            const itsDv = new DataView(its);
+                                            itsDv.setUint32(0, 2, true);
+                                            itsDv.setUint32(8, 0, true);
+                                            mark("STORE-INSTALLER-WAIT", "ms=2000");
+                                            sc(240, itsAddr, 0);
+
+                                            const isz = (storeInstaller.length + 0x3fff) & ~0x3fff;
+                                            const im = sc(SYS.mmap, 0, isz, 7, 0x1002, -1, 0);
+                                            const ientry = new int64(im.lo, im.hi);
+                                            mark("STORE-INSTALLER-MAP",
+                                                "size=0x" + isz.toString(16) + " rwx=" + ientry);
+                                            if (ientry.hi > 0) {
+                                                for (let ii = 0; ii < storeInstaller.length; ++ii)
+                                                    p.write1(ientry.add32(ii), storeInstaller[ii]);
+                                                let ibad = -1;
+                                                for (let ii = 0; ii < storeInstaller.length; ++ii)
+                                                    if (p.read1(ientry.add32(ii)) !== storeInstaller[ii]) {
+                                                        ibad = ii; break;
+                                                    }
+                                                check("store-installer-rwx-memory",
+                                                    ibad < 0, ibad < 0 ? "" : "mismatch at +" + hx(ibad));
+                                                if (ibad < 0) {
+                                                    const ithr = new ArrayBuffer(8);
+                                                    keepAlive.push(ithr);
+                                                    const ithrAddr = bufAddr(ithr);
+                                                    new Uint8Array(ithr).fill(0);
+                                                    const irc = callAddr(expect,
+                                                        [ithrAddr, 0, ientry, 0]).i32;
+                                                    const ihandle = new int64(
+                                                        new DataView(ithr).getUint32(0, true),
+                                                        new DataView(ithr).getUint32(4, true));
+                                                    const irunning = irc === 0 && ihandle.hi > 0;
+                                                    mark("STORE-INSTALLER-PTHREAD",
+                                                        "rc=" + irc + " handle=" + ihandle);
+                                                    check("store-installer-thread-created", irunning, "");
+                                                    if (irunning)
+                                                        state("Store installer started...", "ok");
+                                                }
+                                            }
+                                        } catch (e) {
+                                            mark("STORE-INSTALLER-THREW",
+                                                (e && e.message) ? e.message : String(e));
+                                        }
+                                    }
                                 }
                             }
                         }
